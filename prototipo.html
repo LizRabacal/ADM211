@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise Interativa: Impacto das IES no Desenvolvimento Regional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Earthy Harmony -->
+    <!-- Application Structure Plan: A thematic, story-driven dashboard structure was chosen to guide the user through the research narrative logically. It starts with the core research question (Introduction), introduces the key metrics (The Variables), allows hands-on data exploration (Interactive Analysis), presents the key findings as distinct profiles (Cluster Analysis), explains the predictive model's outcome (Regression Insights), and concludes with the main takeaways. This non-linear, exploratory approach is more engaging and intuitive for understanding complex statistical findings than a simple replication of the report's linear chapter structure. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Presentation Method -> Interaction -> Justification -> Library/Method. 1) Summary Statistics -> Inform -> Interactive Cards -> On-click reveal -> Makes definitions accessible without cluttering the UI. 2) Correlation Matrix -> Compare & Find Relationships -> Interactive Scatter Plot (Chart.js/Canvas) -> Dropdown selectors for axes -> Empowers users to actively discover the relationships reported in the study. 3) Cluster Analysis -> Organize & Inform -> Themed HTML/CSS Cards -> Hover effects -> Translates abstract statistical groups into memorable, tangible profiles. 4) Regression Results -> Inform -> Static text with highlighted metrics -> Clear, direct communication -> Simplifies complex model outputs like R-squared and multicollinearity for a general audience. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #FDFBF5; color: #3D405B; }
+        .data-card { background-color: #FFFFFF; border: 1px solid #E0E0E0; transition: all 0.3s ease; }
+        .data-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin: auto; height: 40vh; max-height: 450px; }
+        .nav-button { transition: all 0.3s ease; border-bottom: 2px solid transparent; }
+        .nav-button:hover, .nav-button.active { color: #81B29A; border-bottom-color: #81B29A; }
+        .stat-value { color: #E07A5F; }
+        .house-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(224, 224, 224, 0.5); }
+        .tooltip { visibility: hidden; }
+        .has-tooltip:hover .tooltip { visibility: visible; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-[#3D405B]">IES & Desenvolvimento</h1>
+            <div class="hidden md:flex space-x-8">
+                <a href="#intro" class="nav-button">Início</a>
+                <a href="#analysis" class="nav-button">Análise Interativa</a>
+                <a href="#clusters" class="nav-button">Perfis das IES</a>
+                <a href="#conclusion" class="nav-button">Conclusão</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden text-2xl">☰</button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden bg-white/90">
+            <a href="#intro" class="block py-2 px-6 text-center">Início</a>
+            <a href="#analysis" class="block py-2 px-6 text-center">Análise Interativa</a>
+            <a href="#clusters" class="block py-2 px-6 text-center">Perfis das IES</a>
+            <a href="#conclusion" class="block py-2 px-6 text-center">Conclusão</a>
+        </div>
+    </header>
+
+    <main>
+        <section id="intro" class="py-16 md:py-24 text-center bg-white">
+            <div class="container mx-auto px-6">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">O Desempenho de uma Universidade Impacta a Economia Local?</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-8">Esta análise interativa explora os dados do estudo "O Impacto do Desempenho das Instituições de Ensino Superior no Desenvolvimento Socioeconômico Regional". Investigamos se indicadores de qualidade acadêmica, como notas institucionais e qualificação docente, se relacionam com o salário médio dos municípios onde as universidades estão localizadas.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                    <div class="data-card p-6 rounded-lg" onclick="showDetails('igc')">
+                        <h3 class="font-bold text-xl mb-2">IGC</h3>
+                        <p class="text-gray-500 text-sm">Índice Geral de Cursos. Uma nota que resume a qualidade da instituição.</p>
+                        <p class="mt-4 text-2xl font-bold stat-value" id="avg-igc">2.69</p>
+                        <p class="text-xs text-gray-400">Média da Amostra</p>
+                    </div>
+                    <div class="data-card p-6 rounded-lg" onclick="showDetails('idd')">
+                        <h3 class="font-bold text-xl mb-2">IDD Médio</h3>
+                        <p class="text-gray-500 text-sm">Mede o quanto o curso agregou ao conhecimento do aluno.</p>
+                        <p class="mt-4 text-2xl font-bold stat-value" id="avg-idd">2.16</p>
+                        <p class="text-xs text-gray-400">Média da Amostra</p>
+                    </div>
+                    <div class="data-card p-6 rounded-lg" onclick="showDetails('phd')">
+                        <h3 class="font-bold text-xl mb-2">Docentes Doutores</h3>
+                        <p class="text-gray-500 text-sm">Proporção do corpo docente com título de doutorado.</p>
+                        <p class="mt-4 text-2xl font-bold stat-value" id="avg-phd">36.4%</p>
+                        <p class="text-xs text-gray-400">Média da Amostra</p>
+                    </div>
+                    <div class="data-card p-6 rounded-lg" onclick="showDetails('salary')">
+                        <h3 class="font-bold text-xl mb-2">Salário Médio</h3>
+                        <p class="text-gray-500 text-sm">Salário médio mensal dos trabalhadores no município da IES.</p>
+                        <p class="mt-4 text-2xl font-bold stat-value" id="avg-salary">R$ 2.58k</p>
+                        <p class="text-xs text-gray-400">Média da Amostra</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysis" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Análise de Correlações</h2>
+                    <p class="max-w-2xl mx-auto text-lg text-gray-600 mt-4">Explore a relação entre os diferentes indicadores. Selecione as variáveis para os eixos X e Y e observe como elas se comportam. Cada ponto no gráfico representa uma universidade da amostra, colorida de acordo com seu perfil.</p>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-8 items-start">
+                    <div class="w-full lg:w-1/3 bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xl mb-4">Controles do Gráfico</h3>
+                        <div class="mb-4">
+                            <label for="xAxisSelect" class="block font-medium text-sm text-gray-700 mb-1">Eixo X (Horizontal)</label>
+                            <select id="xAxisSelect" class="w-full p-2 border rounded-md bg-gray-50">
+                                <option value="igc" selected>IGC</option>
+                                <option value="idd">IDD Médio</option>
+                                <option value="doc_doutorado">Docentes Doutores (%)</option>
+                                <option value="salario_medio">Salário Médio (R$)</option>
+                            </select>
+                        </div>
+                        <div class="mb-6">
+                            <label for="yAxisSelect" class="block font-medium text-sm text-gray-700 mb-1">Eixo Y (Vertical)</label>
+                            <select id="yAxisSelect" class="w-full p-2 border rounded-md bg-gray-50">
+                                <option value="igc">IGC</option>
+                                <option value="idd">IDD Médio</option>
+                                <option value="doc_doutorado">Docentes Doutores (%)</option>
+                                <option value="salario_medio" selected>Salário Médio (R$)</option>
+                            </select>
+                        </div>
+                        <div id="correlation-info" class="bg-stone-100 p-4 rounded-lg text-center">
+                            <p class="font-semibold text-lg">Correlação de Pearson</p>
+                            <p id="correlation-value" class="text-3xl font-bold my-2 stat-value">0.71</p>
+                            <p id="correlation-text" class="text-sm text-gray-600">Associação forte e positiva</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full lg:w-2/3">
+                        <div class="chart-container bg-white p-4 rounded-lg shadow-md">
+                            <canvas id="scatterPlot"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="clusters" class="py-16 md:py-24 bg-gray-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Os Perfis das Instituições</h2>
+                    <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-4">A análise de agrupamento (K-Means) revelou três grupos distintos de instituições na amostra, cada um com características bem definidas. Nós os apelidamos de "casas", inspirados em Game of Thrones, para ilustrar seus perfis estratégicos.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="house-card rounded-lg p-6 text-center border-2 border-red-400 shadow-lg">
+                        <p class="text-4xl mb-4">🐉</p>
+                        <h3 class="text-2xl font-bold text-red-800 mb-2">Casa Targaryen (A Elite)</h3>
+                        <p class="font-semibold mb-4">(3 Instituições)</p>
+                        <p class="text-gray-600 mb-6">Operam em um patamar de excelência distinto, com desempenho excepcional em todos os indicadores e localizadas em municípios de altíssima renda. Definem o padrão máximo de qualidade.</p>
+                        <div class="text-left space-y-2 text-sm">
+                            <p><strong>IGC Médio:</strong> <span class="font-bold stat-value">4.04</span></p>
+                            <p><strong>Salário Médio:</strong> <span class="font-bold stat-value">R$ 4.400</span></p>
+                            <p><strong>Doutores:</strong> <span class="font-bold stat-value">80%</span></p>
+                        </div>
+                    </div>
+                    <div class="house-card rounded-lg p-6 text-center border-2 border-yellow-500 shadow-lg">
+                        <p class="text-4xl mb-4">🦁</p>
+                        <h3 class="text-2xl font-bold text-yellow-800 mb-2">Casa Lannister (Alta Qualidade)</h3>
+                        <p class="font-semibold mb-4">(16 Instituições)</p>
+                        <p class="text-gray-600 mb-6">O maior grupo, representa o poder derivado de recursos e estratégia. Possuem IGC elevado e estão em regiões de alta renda, formando o pilar de influência e qualidade do cenário educacional.</p>
+                        <div class="text-left space-y-2 text-sm">
+                             <p><strong>IGC Médio:</strong> <span class="font-bold stat-value">2.87</span></p>
+                            <p><strong>Salário Médio:</strong> <span class="font-bold stat-value">R$ 2.775</span></p>
+                             <p><strong>Doutores:</strong> <span class="font-bold stat-value">39%</span></p>
+                        </div>
+                    </div>
+                    <div class="house-card rounded-lg p-6 text-center border-2 border-gray-400 shadow-lg">
+                        <p class="text-4xl mb-4">🐺</p>
+                        <h3 class="text-2xl font-bold text-gray-700 mb-2">Casa Stark (Base Resiliente)</h3>
+                        <p class="font-semibold mb-4">(13 Instituições)</p>
+                        <p class="text-gray-600 mb-6">Representam a resiliência e a tradição em face de cenários mais desafiadores. Seus indicadores são mais modestos e formam a vasta e honrada espinha dorsal do sistema educacional.</p>
+                        <div class="text-left space-y-2 text-sm">
+                             <p><strong>IGC Médio:</strong> <span class="font-bold stat-value">2.16</span></p>
+                            <p><strong>Salário Médio:</strong> <span class="font-bold stat-value">R$ 1.954</span></p>
+                             <p><strong>Doutores:</strong> <span class="font-bold stat-value">19.7%</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Conclusões da Pesquisa</h2>
+                    <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-4">A análise estatística nos permite tirar conclusões importantes, mas também revela as complexidades e limitações do estudo.</p>
+                </div>
+                <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 p-8 rounded-lg">
+                        <h3 class="font-bold text-xl mb-3 text-green-700">Relação Confirmada</h3>
+                        <p class="text-gray-600">O estudo confirmou uma **relação moderada e positiva** entre os indicadores de qualidade das IES e o salário médio dos seus municípios. O modelo de regressão conseguiu explicar <strong class="text-2xl stat-value">56,3%</strong> da variação nos salários, um resultado estatisticamente significativo.</p>
+                    </div>
+                    <div class="bg-gray-50 p-8 rounded-lg">
+                        <h3 class="font-bold text-xl mb-3 text-orange-700">O Desafio da Multicolinearidade</h3>
+                        <p class="text-gray-600">Apesar do sucesso do modelo geral, uma limitação importante foi encontrada: a **multicolinearidade**. Como os indicadores de qualidade (IGC, IDD, Doutores) são altamente correlacionados entre si, torna-se difícil isolar o impacto exato de cada um. É como tentar medir o efeito do sal e da pimenta em uma receita quando ambos são sempre usados juntos.</p>
+                    </div>
+                    <div class="md:col-span-2 bg-[#3D405B] text-white p-8 rounded-lg">
+                         <h3 class="font-bold text-xl mb-3 text-gray-100">Implicações e Próximos Passos</h3>
+                         <p class="text-gray-300">Os achados reforçam o papel crucial das universidades como motores do desenvolvimento local. A excelência acadêmica e a qualificação docente estão, de fato, associadas a melhores condições econômicas. Estudos futuros poderiam usar modelos estatísticos mais avançados para contornar a multicolinearidade e incluir outras variáveis, como investimentos em pesquisa e infraestrutura, para obter uma visão ainda mais completa.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white text-center py-6">
+        <div class="container mx-auto px-6">
+            <p>Aplicação interativa baseada no trabalho de Liz Oliveira Souza Rabaçal (UFBA, 2025).</p>
+            <p class="text-xs text-gray-400 mt-2">Desenvolvido como um exemplo de visualização de dados interativa.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const data = [
+                { id: 4586, igc: 2.068, idd: 0.87, doc_doutorado: 0.69, salario_medio: 1.8, cluster: 1 },
+                { id: 810, igc: 2.481, idd: 2.34, doc_doutorado: 0.17, salario_medio: 2.0, cluster: 1 },
+                { id: 2571, igc: 2.712, idd: 2.22, doc_doutorado: 0.20, salario_medio: 1.9, cluster: 1 },
+                { id: 439, igc: 2.695, idd: 1.82, doc_doutorado: 0.52, salario_medio: 2.1, cluster: 0 },
+                { id: 3529, igc: 2.520, idd: 0.32, doc_doutorado: 0.25, salario_medio: 2.5, cluster: 0 },
+                { id: 1828, igc: 3.493, idd: 4.08, doc_doutorado: 0.45, salario_medio: 4.4, cluster: 2 },
+                { id: 1308, igc: 2.615, idd: 2.40, doc_doutorado: 0.13, salario_medio: 2.0, cluster: 1 },
+                { id: 20322, igc: 2.319, idd: 2.70, doc_doutorado: 0.19, salario_medio: 1.6, cluster: 1 },
+                { id: 295, igc: 3.585, idd: 2.84, doc_doutorado: 0.46, salario_medio: 2.8, cluster: 0 },
+                { id: 1310, igc: 2.560, idd: 2.48, doc_doutorado: 0.27, salario_medio: 2.7, cluster: 0 },
+                { id: 21693, igc: 3.549, idd: 1.18, doc_doutorado: 0.69, salario_medio: 2.1, cluster: 0 },
+                { id: 4025, igc: 3.139, idd: 3.60, doc_doutorado: 0.55, salario_medio: 2.6, cluster: 0 },
+                { id: 3921, igc: 1.934, idd: 1.47, doc_doutorado: 0.15, salario_medio: 2.1, cluster: 1 },
+                { id: 353, igc: 3.098, idd: 1.99, doc_doutorado: 0.54, salario_medio: 3.6, cluster: 0 },
+                { id: 21675, igc: 2.536, idd: 2.16, doc_doutorado: 0.13, salario_medio: 2.0, cluster: 1 },
+                { id: 3972, igc: 2.620, idd: 2.18, doc_doutorado: 0.44, salario_medio: 2.1, cluster: 0 },
+                { id: 10251, igc: 1.104, idd: 0.96, doc_doutorado: 0.28, salario_medio: 2.1, cluster: 1 },
+                { id: 21262, igc: 1.898, idd: 1.18, doc_doutorado: 0.00, salario_medio: 1.5, cluster: 1 },
+                { id: 410, igc: 2.928, idd: 2.15, doc_doutorado: 0.39, salario_medio: 3.2, cluster: 0 },
+                { id: 22076, igc: 2.197, idd: 1.93, doc_doutorado: 0.27, salario_medio: 2.1, cluster: 1 },
+                { id: 824, igc: 2.729, idd: 2.44, doc_doutorado: 0.23, salario_medio: 2.5, cluster: 0 },
+                { id: 2910, igc: 2.454, idd: 2.10, doc_doutorado: 0.07, salario_medio: 1.5, cluster: 1 },
+                { id: 1892, igc: 2.737, idd: 2.10, doc_doutorado: 0.19, salario_medio: 2.9, cluster: 0 },
+                { id: 18667, igc: 2.277, idd: 1.90, doc_doutorado: 0.25, salario_medio: 3.2, cluster: 0 },
+                { id: 1351, igc: 2.740, idd: 1.87, doc_doutorado: 0.34, salario_medio: 2.8, cluster: 0 },
+                { id: 1115, igc: 2.869, idd: 2.38, doc_doutorado: 0.17, salario_medio: 2.8, cluster: 0 },
+                { id: 3430, igc: 2.763, idd: 2.74, doc_doutorado: 0.66, salario_medio: 2.7, cluster: 0 },
+                { id: 4362, igc: 2.795, idd: 2.37, doc_doutorado: 0.44, salario_medio: 3.1, cluster: 0 },
+                { id: 56, igc: 4.226, idd: 2.55, doc_doutorado: 0.99, salario_medio: 4.4, cluster: 2 },
+                { id: 11, igc: 2.851, idd: 2.33, doc_doutorado: 0.54, salario_medio: 3.2, cluster: 0 },
+                { id: 790, igc: 4.411, idd: 4.14, doc_doutorado: 0.96, salario_medio: 4.4, cluster: 2 },
+                { id: 750, igc: 1.291, idd: 1.40, doc_doutorado: 0.11, salario_medio: 2.0, cluster: 1 }
+            ];
+
+            const ctx = document.getElementById('scatterPlot').getContext('2d');
+            const xAxisSelect = document.getElementById('xAxisSelect');
+            const yAxisSelect = document.getElementById('yAxisSelect');
+
+            const correlations = {
+                igc: { igc: 1, idd: 0.641, doc_doutorado: 0.720, salario_medio: 0.708 },
+                idd: { igc: 0.641, idd: 1, doc_doutorado: 0.348, salario_medio: 0.560 },
+                doc_doutorado: { igc: 0.720, idd: 0.348, doc_doutorado: 1, salario_medio: 0.629 },
+                salario_medio: { igc: 0.708, idd: 0.560, doc_doutorado: 0.629, salario_medio: 1 }
+            };
+            
+            const labels = {
+                igc: 'IGC',
+                idd: 'IDD Médio',
+                doc_doutorado: 'Docentes Doutores (%)',
+                salario_medio: 'Salário Médio (R$)'
+            };
+
+            const formatters = {
+                igc: val => val.toFixed(3),
+                idd: val => val.toFixed(2),
+                doc_doutorado: val => `${(val * 100).toFixed(1)}%`,
+                salario_medio: val => `R$ ${val.toFixed(3)}`
+            };
+
+            const clusterStyles = {
+                0: { color: 'rgba(218, 165, 32, 0.8)', name: 'Casa Lannister' }, // Gold
+                1: { color: 'rgba(119, 136, 153, 0.8)', name: 'Casa Stark' },   // SlateGray
+                2: { color: 'rgba(220, 20, 60, 0.8)', name: 'Casa Targaryen' } // Crimson
+            };
+
+            let scatterPlot;
+
+            function getCorrelationText(r) {
+                const absR = Math.abs(r);
+                if (absR >= 0.8) return 'Associação muito forte';
+                if (absR >= 0.6) return 'Associação forte';
+                if (absR >= 0.4) return 'Associação moderada';
+                if (absR >= 0.2) return 'Associação fraca';
+                return 'Associação muito fraca ou nula';
+            }
+
+            function updateChart() {
+                const xVar = xAxisSelect.value;
+                const yVar = yAxisSelect.value;
+
+                if (scatterPlot) {
+                    scatterPlot.destroy();
+                }
+
+                const datasets = Object.keys(clusterStyles).map(clusterKey => {
+                    return {
+                        label: clusterStyles[clusterKey].name,
+                        data: data.filter(d => d.cluster == clusterKey).map(d => ({ x: d[xVar], y: d[yVar] })),
+                        backgroundColor: clusterStyles[clusterKey].color,
+                        borderColor: clusterStyles[clusterKey].color.replace('0.8', '1'),
+                        borderWidth: 1,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    };
+                });
+
+                scatterPlot = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: { display: true, text: labels[xVar] },
+                                grid: { color: '#f0f0f0' }
+                            },
+                            y: {
+                                title: { display: true, text: labels[yVar] },
+                                grid: { color: '#f0f0f0' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        const pointData = data.find(d => d[xVar] === context.parsed.x && d[yVar] === context.parsed.y);
+                                        if (pointData) {
+                                            label += `IES Cód. ${pointData.id}`;
+                                        }
+                                        return label;
+                                    },
+                                    afterLabel: function(context) {
+                                        const pointData = data.find(d => d[xVar] === context.parsed.x && d[yVar] === context.parsed.y);
+                                        if (pointData) {
+                                             return [
+                                                `${labels.igc}: ${formatters.igc(pointData.igc)}`,
+                                                `${labels.idd}: ${formatters.idd(pointData.idd)}`,
+                                                `${labels.doc_doutorado}: ${formatters.doc_doutorado(pointData.doc_doutorado)}`,
+                                                `${labels.salario_medio}: ${formatters.salario_medio(pointData.salario_medio)}`,
+                                            ];
+                                        }
+                                        return '';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                const correlationValue = correlations[xVar][yVar];
+                document.getElementById('correlation-value').textContent = correlationValue.toFixed(2);
+                document.getElementById('correlation-text').textContent = getCorrelationText(correlationValue) + (xVar === yVar ? '' : (correlationValue > 0 ? ' e positiva' : ' e negativa'));
+
+            }
+
+            xAxisSelect.addEventListener('change', updateChart);
+            yAxisSelect.addEventListener('change', updateChart);
+            
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            document.querySelectorAll('#mobile-menu a, .nav-button').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (!mobileMenu.classList.contains('hidden')) {
+                         mobileMenu.classList.add('hidden');
+                    }
+                });
+            });
+
+            updateChart();
+        });
+        
+        function showDetails(metric) {
+            alert('Esta funcionalidade de detalhe está em desenvolvimento. Por enquanto, explore a análise de correlações e os perfis das instituições.');
+        }
+
+    </script>
+</body>
+</html>
